@@ -34,6 +34,7 @@ func init() {
 	fetchCmd.Flags().StringP("pattern", "p", "", "JMESPath pattern (required) : https://jmespath.org/tutorial.html")
 	fetchCmd.Flags().StringP("output", "o", "json", "Output type (optional, default is 'json'): 'json' or 'yaml'")
 	fetchCmd.Flags().StringP("loglevel", "l", "debug", "Logging level (optional, default is 'debug'): 'panic', 'fatal', 'error', 'warn', 'info', 'debug', 'trace'")
+	fetchCmd.Flags().BoolP("validate", "v", false, "Enable validation of OpenAPI spec (optional, default is 'false')")
 	fetchCmd.MarkFlagRequired("url")
 	fetchCmd.MarkFlagRequired("pattern")
 }
@@ -57,12 +58,15 @@ func fetch(cmd *cobra.Command, args []string) {
 		logrus.Fatal("Invalid log level:", err)
 	}
 	logrus.SetLevel(level)
+	validate, _ := cmd.Flags().GetBool("validate")
+	logrus.Debug("Validation : ", validate)
 
 	// Fetch OpenAPI spec
 	specBytes, specType, err := fetchOpenAPISpec(url)
 	if err != nil {
 		logrus.Fatal(err)
 	} else {
+		logrus.Debug("SpecType :", specType)
 		size := len(specBytes)
 		if size < 1024 {
 			logrus.Debug("Size of OpenAPI spec: ", size, " Bytes")
@@ -74,8 +78,10 @@ func fetch(cmd *cobra.Command, args []string) {
 	}
 
 	// Validate OpenAPI spec
-	if err = validateOpenAPISpec(specBytes); err != nil {
-		logrus.Fatal("Invalid OpenAPI spec:", err)
+	if validate {
+		if err = validateOpenAPISpec(specBytes); err != nil {
+			logrus.Fatal("Invalid OpenAPI spec:", err)
+		}
 	}
 
 	// Process with JMESPath
@@ -95,7 +101,7 @@ func fetch(cmd *cobra.Command, args []string) {
 			logrus.Fatal("Failed to unmarshal YAML OpenAPI Spec:", err)
 		}
 	default:
-		logrus.Fatal("Unsupported spec type:", specType)
+		logrus.Fatal("Unsupported spec type: ", specType)
 	}
 
 	result, err := jmespath.Search(pattern, data)
@@ -139,6 +145,8 @@ func fetchOpenAPISpec(url string) ([]byte, string, error) {
 		// Optionally handle the error or set a default mediaType
 	}
 
+	logrus.Debug("Content-Type: ", contentType)
+
 	// Determine the format based on the media type
 	var format string
 	if strings.HasPrefix(mediaType, "application/json") || strings.HasPrefix(mediaType, "text/json") {
@@ -147,6 +155,15 @@ func fetchOpenAPISpec(url string) ([]byte, string, error) {
 		format = "yaml"
 	} else {
 		format = "unknown"
+	}
+
+	if format == "unknown" {
+		// Attempt to figure out the format by the file prefix of the url
+		if strings.HasSuffix(url, ".json") {
+			format = "json"
+		} else if strings.HasSuffix(url, ".yaml") || strings.HasSuffix(url, ".yml") {
+			format = "yaml"
+		}
 	}
 
 	return body, format, nil
