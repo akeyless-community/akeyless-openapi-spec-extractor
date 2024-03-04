@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -46,19 +47,34 @@ func main() {
 }
 
 func fetch(cmd *cobra.Command, args []string) {
-	url, _ := cmd.Flags().GetString("url")
+	url, err := cmd.Flags().GetString("url")
+	if err != nil {
+		logrus.Fatal("Error retrieving URL:", err)
+	}
 	logrus.Debug("URL        : ", url)
-	pattern, _ := cmd.Flags().GetString("pattern")
+	pattern, err := cmd.Flags().GetString("pattern")
+	if err != nil {
+		logrus.Fatal("Error retrieving pattern:", err)
+	}
 	logrus.Debug("Pattern    : ", pattern)
-	outputType, _ := cmd.Flags().GetString("output")
+	outputType, err := cmd.Flags().GetString("output")
+	if err != nil {
+		logrus.Fatal("Error retrieving output type:", err)
+	}
 	logrus.Debug("Output Type: ", outputType)
-	loglevel, _ := cmd.Flags().GetString("loglevel")
+	loglevel, err := cmd.Flags().GetString("loglevel")
+	if err != nil {
+		logrus.Fatal("Error retrieving log level:", err)
+	}
 	level, err := logrus.ParseLevel(loglevel)
 	if err != nil {
 		logrus.Fatal("Invalid log level:", err)
 	}
 	logrus.SetLevel(level)
-	validate, _ := cmd.Flags().GetBool("validate")
+	validate, err := cmd.Flags().GetBool("validate")
+	if err != nil {
+		logrus.Fatal("Error retrieving validate flag:", err)
+	}
 	logrus.Debug("Validation : ", validate)
 
 	// Fetch OpenAPI spec
@@ -183,39 +199,61 @@ func validateOpenAPISpec(specBytes []byte) error {
 	return nil
 }
 
+// printResult takes a result of type interface{}, a specType indicating the original format of the result,
+// and an outputType indicating the desired output format. It attempts to marshal and possibly convert the result
+// into the desired format. Errors and debug information are logged, while the final output is printed to stdout.
 func printResult(result interface{}, specType string, outputType string) {
+	logrus.Debug("Attempting to process result with specType: ", specType, " and outputType: ", outputType)
+
 	var output []byte
 	var err error
 
+	// Marshal result into its original format (JSON or YAML)
 	switch specType {
 	case "json":
-		if outputType == "yaml" {
-			output, err = yaml.JSONToYAML(result.([]byte))
-			if err != nil {
-				logrus.Error("Error converting JSON to YAML: ", err)
-				return // or handle the error as required
-			}
-		} else {
-			output = result.([]byte)
+		output, err = json.Marshal(result)
+		if err != nil {
+			logrus.Error("Error marshaling result to JSON: ", err)
+			return
 		}
 	case "yaml":
-		if outputType == "json" {
-			output, err = yaml.YAMLToJSON(result.([]byte))
-			if err != nil {
-				logrus.Error("Error converting YAML to JSON: ", err)
-				return // or handle the error as required
-			}
-		} else {
-			output = result.([]byte)
+		output, err = yaml.Marshal(result)
+		if err != nil {
+			logrus.Error("Error marshaling result to YAML: ", err)
+			return
 		}
 	default:
 		logrus.Error("Unknown spec type: ", specType)
 		return
 	}
 
+	// Convert marshaled data to the desired output format if necessary
+	if specType != outputType {
+		output, err = convertFormat(output, specType, outputType)
+		if err != nil {
+			logrus.Error("Error converting data format: ", err)
+			return
+		}
+	}
+
 	if output != nil {
-		logrus.Info(string(output))
+		fmt.Println(string(output)) // Direct final output to stdout
 	} else {
 		logrus.Error("No output generated")
+	}
+}
+
+// convertFormat takes a byte slice of data, its current format (currentFormat), and the desired format (targetFormat),
+// and attempts to convert the data to the target format. It returns the converted data or an error if the conversion fails.
+func convertFormat(data []byte, currentFormat string, targetFormat string) ([]byte, error) {
+	logrus.Debug("Converting data from ", currentFormat, " to ", targetFormat)
+	switch {
+	case currentFormat == "json" && targetFormat == "yaml":
+		return yaml.JSONToYAML(data)
+	case currentFormat == "yaml" && targetFormat == "json":
+		return yaml.YAMLToJSON(data)
+	default:
+		logrus.Error("Unsupported conversion: ", currentFormat, " to ", targetFormat)
+		return nil, fmt.Errorf("unsupported conversion from %s to %s", currentFormat, targetFormat)
 	}
 }
