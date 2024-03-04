@@ -35,7 +35,7 @@ func init() {
 	fetchCmd.Flags().StringP("pattern", "p", "", "JMESPath pattern (required) : https://jmespath.org/tutorial.html")
 	fetchCmd.Flags().StringP("output", "o", "json", "Output type (optional, default is 'json'): 'json' or 'yaml'")
 	fetchCmd.Flags().StringP("loglevel", "l", "debug", "Logging level (optional, default is 'debug'): 'panic', 'fatal', 'error', 'warn', 'info', 'debug', 'trace'")
-	fetchCmd.Flags().BoolP("validate", "v", false, "Enable validation of OpenAPI spec (optional, default is 'false')")
+	fetchCmd.Flags().BoolP("validate", "v", true, "Enable validation of OpenAPI spec (optional, default is 'false')")
 	fetchCmd.MarkFlagRequired("url")
 	fetchCmd.MarkFlagRequired("pattern")
 }
@@ -120,13 +120,15 @@ func fetch(cmd *cobra.Command, args []string) {
 		logrus.Fatal("Unsupported spec type: ", specType)
 	}
 
+	fullApiSpec := data
+
 	result, err := jmespath.Search(pattern, data)
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
 	// Output the result
-	printResult(result, specType, outputType)
+	printResult(result, specType, outputType, fullApiSpec)
 }
 
 func fetchOpenAPISpec(url string) ([]byte, string, error) {
@@ -202,11 +204,13 @@ func validateOpenAPISpec(specBytes []byte) error {
 // printResult takes a result of type interface{}, a specType indicating the original format of the result,
 // and an outputType indicating the desired output format. It attempts to marshal and possibly convert the result
 // into the desired format. Errors and debug information are logged, while the final output is printed to stdout.
-func printResult(result interface{}, specType string, outputType string) {
+func printResult(result interface{}, specType string, outputType string, fullApiSpec interface{}) {
 	logrus.Debug("Attempting to process result with specType: ", specType, " and outputType: ", outputType)
 
 	var output []byte
 	var err error
+
+	processReferences(result, fullApiSpec)
 
 	// Marshal result into its original format (JSON or YAML)
 	switch specType {
@@ -236,10 +240,68 @@ func printResult(result interface{}, specType string, outputType string) {
 		}
 	}
 
-	if output != nil {
-		fmt.Println(string(output)) // Direct final output to stdout
+	outputJson := string(output)
+
+	if outputJson != "" {
+		fmt.Println(outputJson) // Direct final output to stdout
 	} else {
 		logrus.Error("No output generated")
+	}
+}
+
+func processReferences(data interface{}, fullApiSpec interface{}) {
+	// Walk through the map and replace "$ref" values
+	replaceRefValues(data, fullApiSpec)
+}
+
+func replaceRefValues(v interface{}, fullApiSpec interface{}) {
+	switch data := v.(type) {
+	case map[string]interface{}:
+		for k, v := range data {
+			if k == "$ref" {
+				refValue := data[k].(string)
+				logrus.Debug("$ref: ", refValue)
+				newPattern := transformString(refValue)
+				logrus.Debug("newPattern: ", newPattern)
+
+				// Perform a JMESPath search on the fullApiSpec with the newPattern
+				result, err := jmespath.Search(newPattern, fullApiSpec)
+				if err != nil {
+					logrus.Error("Failed to resolve $ref: ", refValue, " with error: ", err)
+					continue // Skip this $ref if we can't resolve it
+				}
+
+				// Replace "$ref" key with "schema" and its value with the resolved object
+				delete(data, "$ref") // Remove the "$ref" key
+				if resolvedRef, ok := result.(map[string]interface{}); ok {
+					// Assuming you want to replace the content at "$ref" with its resolved value
+					for key, value := range resolvedRef {
+						data[key] = value // Update or add each key-value pair from the resolved reference into the original map
+					}
+				} else {
+					logrus.Error("Resolved reference is not of type map[string]interface{}")
+				}
+			} else if k == "items" && v != nil {
+				// Special handling for arrays defined by $ref in their items
+				itemsMap, ok := v.(map[string]interface{})
+				if ok && itemsMap["$ref"] != nil {
+					replaceRefValues(itemsMap, fullApiSpec) // Resolve the $ref within the items definition
+				}
+			} else if k == "responses" {
+				// Explicitly handle response objects
+				if responses, ok := v.(map[string]interface{}); ok {
+					for _, response := range responses {
+						replaceRefValues(response, fullApiSpec) // Recursively process response objects
+					}
+				}
+			} else {
+				replaceRefValues(v, fullApiSpec) // Recursively process nested maps
+			}
+		}
+	case []interface{}:
+		for i := range data {
+			replaceRefValues(data[i], fullApiSpec) // Process arrays
+		}
 	}
 }
 
@@ -256,4 +318,16 @@ func convertFormat(data []byte, currentFormat string, targetFormat string) ([]by
 		logrus.Error("Unsupported conversion: ", currentFormat, " to ", targetFormat)
 		return nil, fmt.Errorf("unsupported conversion from %s to %s", currentFormat, targetFormat)
 	}
+}
+
+// transformString takes a string formatted like "#/components/responses/errorResponse",
+// removes the leading "#/", and then replaces "/" with "."
+func transformString(s string) string {
+	// Remove the leading "#/"
+	s = strings.TrimPrefix(s, "#/")
+
+	// Replace all occurrences of "/" with "."
+	s = strings.Replace(s, "/", ".", -1)
+
+	return s
 }
