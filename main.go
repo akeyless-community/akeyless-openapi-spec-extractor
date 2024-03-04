@@ -254,53 +254,65 @@ func processReferences(data interface{}, fullApiSpec interface{}) {
 	replaceRefValues(data, fullApiSpec)
 }
 
+// replaceRefValues recursively processes the given data structure (v) to replace "$ref" references with their resolved values from the fullApiSpec.
+// It handles both map and slice types, diving into nested structures as needed.
 func replaceRefValues(v interface{}, fullApiSpec interface{}) {
+	// Determine the type of the provided data structure.
 	switch data := v.(type) {
 	case map[string]interface{}:
+		// If the data is a map, iterate over each key-value pair.
 		for k, v := range data {
+			// Check if the current key is a "$ref" that needs to be resolved.
 			if k == "$ref" {
 				refValue := data[k].(string)
-				logrus.Debug("$ref: ", refValue)
+				logrus.Debugf("Found $ref to resolve: %s", refValue)
 				newPattern := transformString(refValue)
-				logrus.Debug("newPattern: ", newPattern)
+				logrus.Debugf("Transformed $ref to JMESPath query: %s", newPattern)
 
-				// Perform a JMESPath search on the fullApiSpec with the newPattern
+				// Perform a JMESPath search on the fullApiSpec with the transformed query.
 				result, err := jmespath.Search(newPattern, fullApiSpec)
 				if err != nil {
-					logrus.Error("Failed to resolve $ref: ", refValue, " with error: ", err)
-					continue // Skip this $ref if we can't resolve it
+					logrus.Errorf("Failed to resolve $ref: %s with error: %v", refValue, err)
+					continue // Skip this $ref if we can't resolve it.
 				}
 
-				// Replace "$ref" key with "schema" and its value with the resolved object
-				delete(data, "$ref") // Remove the "$ref" key
+				logrus.Debugf("Successfully resolved $ref: %s", refValue)
+
+				// Replace "$ref" key with the resolved object.
+				delete(data, "$ref") // Remove the "$ref" key.
 				if resolvedRef, ok := result.(map[string]interface{}); ok {
-					// Assuming you want to replace the content at "$ref" with its resolved value
+					// Update or add each key-value pair from the resolved reference into the original map.
 					for key, value := range resolvedRef {
-						data[key] = value // Update or add each key-value pair from the resolved reference into the original map
+						data[key] = value
 					}
 				} else {
 					logrus.Error("Resolved reference is not of type map[string]interface{}")
 				}
 			} else if k == "items" && v != nil {
-				// Special handling for arrays defined by $ref in their items
+				// Special handling for arrays defined by $ref in their items.
+				logrus.Debug("Processing 'items' with $ref")
 				itemsMap, ok := v.(map[string]interface{})
 				if ok && itemsMap["$ref"] != nil {
-					replaceRefValues(itemsMap, fullApiSpec) // Resolve the $ref within the items definition
+					replaceRefValues(itemsMap, fullApiSpec) // Resolve the $ref within the items definition.
 				}
 			} else if k == "responses" {
-				// Explicitly handle response objects
+				// Explicitly handle response objects.
+				logrus.Debug("Processing 'responses' objects")
 				if responses, ok := v.(map[string]interface{}); ok {
 					for _, response := range responses {
-						replaceRefValues(response, fullApiSpec) // Recursively process response objects
+						replaceRefValues(response, fullApiSpec) // Recursively process response objects.
 					}
 				}
 			} else {
-				replaceRefValues(v, fullApiSpec) // Recursively process nested maps
+				// Recursively process nested maps.
+				replaceRefValues(v, fullApiSpec)
 			}
 		}
 	case []interface{}:
+		// If the data is a slice, iterate over each element.
+		logrus.Debug("Processing slice for $ref values")
 		for i := range data {
-			replaceRefValues(data[i], fullApiSpec) // Process arrays
+			replaceRefValues(data[i], fullApiSpec) // Process each element in the slice.
 		}
 	}
 }
