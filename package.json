@@ -1,6 +1,6 @@
 {
   "name": "akeyless-openapi-spec-extractor",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "bin":{
     "openapi-extractor": "./src/cli.js"
   },

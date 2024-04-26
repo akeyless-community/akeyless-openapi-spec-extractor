@@ -11,7 +11,6 @@ export const fetchCommand = new Command('fetch')
   .requiredOption('-p, --path <path>', 'The Path to the desired endpoint within the OpenAPI spec')
   .option('-o, --output <output>', 'Output type (default: "json"): "json" or "yaml"', 'json')
   .option('-l, --loglevel <level>', 'Logging level (default: "error"): "error", "warn", "info", "debug"', 'error')
-  .option('-v, --validate', 'Enable validation of OpenAPI spec', false)
   .action(async (options) => {
     try {
       logger.level = options.loglevel;

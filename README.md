@@ -45,7 +45,6 @@ openapi-extractor fetch -u <url> -p <path> [options]
 - `-p, --path <path>`: The path to the desired endpoint within the OpenAPI spec (including the leading slash), for example, "/auth" (required)
 - `-o, --output <output>`: Output type (default: "json"): "json" or "yaml"
 - `-l, --loglevel <level>`: Logging level (default: "error"): "error", "warn", "info", "debug"
-- `-v, --validate`: Enable validation of OpenAPI spec
 
 ### Local Command
 
@@ -59,7 +58,6 @@ openapi-extractor local -f <file> -p <path> [options]
 - `-p, --path <path>`: The path to the desired endpoint within the OpenAPI spec (including the leading slash), for example, "/auth" (required)
 - `-o, --output <output>`: Output type (default: "json"): "json" or "yaml"
 - `-l, --loglevel <level>`: Logging level (default: "error"): "error", "warn", "info", "debug"
-- `-v, --validate`: Enable validation of OpenAPI spec
 
 ### Stdin Command
 
@@ -68,7 +66,6 @@ The `stdin` command allows you to process an OpenAPI spec from stdin and extract
 - `-p, --path <path>`: The path to the desired endpoint within the OpenAPI spec (including the leading slash), for example, "/auth" (required)
 - `-o, --output <output>`: Output type (default: "json"): "json" or "yaml"
 - `-l, --loglevel <level>`: Logging level (default: "error"): "error", "warn", "info", "debug"
-- `-v, --validate`: Enable validation of OpenAPI spec
 
 ## Examples
 
