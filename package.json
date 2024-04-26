@@ -1,8 +1,8 @@
 {
   "name": "akeyless-openapi-spec-extractor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "bin":{
-    "openapi-extractor": "./src/cli.js"
+    "openapi-extractor": "node ./src/cli.js"
   },
   "description": "extracting single endpoints from OpenAPI specs with all details of the endpoint",
   "main": "src/cli.js",
