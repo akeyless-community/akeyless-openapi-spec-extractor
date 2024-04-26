@@ -4,6 +4,12 @@
 
 The Akeyless OpenAPI Spec Extractor is a command-line interface (CLI) tool that allows you to extract specific endpoints from an OpenAPI specification (Swagger) along with all the relevant details of the endpoint. It provides a convenient way to fetch OpenAPI specs from a URL or process local OpenAPI spec files.
 
+## Project Genesis and Purpose
+
+The Akeyless OpenAPI Spec Extractor project was born out of the need to extract comprehensive information about a specific endpoint from a large list of endpoints in an OpenAPI specification. The goal was to make it easier to send this information to a large language model to assist with code generation for interacting with that endpoint using tools for agentic workflows.
+
+By extracting all the relevant details of an endpoint, including inputs and outputs, the Akeyless OpenAPI Spec Extractor simplifies the process of integrating with APIs and facilitates the development of intelligent agents that can understand and interact with specific endpoints based on the extracted information.
+
 ## Features
 
 - Fetch OpenAPI specs from a URL
