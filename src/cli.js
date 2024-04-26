@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 // cli.js
 import { program } from 'commander';
 import { fetchCommand } from './commands/fetch.js';
