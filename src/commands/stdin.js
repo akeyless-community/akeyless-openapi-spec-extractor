@@ -6,7 +6,7 @@ import { outputResult } from '../utils/output.js';
 
 export const stdinCommand = new Command('stdin')
   .description('Process OpenAPI spec from stdin')
-  .requiredOption('-p, --pattern <pattern>', 'JMESPath pattern (https://jmespath.org/tutorial.html)')
+  .requiredOption('-p, --path <path>', 'The Path to the desired endpoint within the OpenAPI spec (including the leading slash) for example "/auth"')
   .option('-o, --output <output>', 'Output type (default: "json"): "json" or "yaml"', 'json')
   .option('-l, --loglevel <level>', 'Logging level (default: "info"): "error", "warn", "info", "debug"', 'info')
   .option('-v, --validate', 'Enable validation of OpenAPI spec', false)
@@ -25,7 +25,10 @@ export const stdinCommand = new Command('stdin')
 
         logger.debug('OpenAPI spec loaded successfully');
 
-        const extractedData = openapiExtractor.extract(openapiSpec, { path: options.pattern, removeDocs: true, removeExamples: true, removeExtensions: true });
+        // prefix a leading slash to the options.path if it doesn't already have one
+        options.path = options.path.startsWith('/') ? options.path : `/${options.path}`;
+
+        const extractedData = openapiExtractor.extract(openapiSpec, { path: options.path, removeDocs: true, removeExamples: true, removeExtensions: true, openai: true });
 
         logger.debug('Extracted data:', extractedData);
 

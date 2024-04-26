@@ -5,7 +5,7 @@
     "openapi-extractor": "./src/cli.js"
   },
   "description": "extracting single endpoints from OpenAPI specs with all details of the endpoint",
-  "main": "cli.js",
+  "main": "src/cli.js",
   "type": "module",
   "scripts": {
     "extractor": "node ./src/cli.js",

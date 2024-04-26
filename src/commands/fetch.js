@@ -8,7 +8,7 @@ import { outputResult } from '../utils/output.js';
 export const fetchCommand = new Command('fetch')
   .description('Fetch and process OpenAPI spec')
   .requiredOption('-u, --url <url>', 'URL of the OpenAPI spec')
-  .requiredOption('-p, --pattern <pattern>', 'JMESPath pattern (https://jmespath.org/tutorial.html)')
+  .requiredOption('-p, --path <path>', 'The Path to the desired endpoint within the OpenAPI spec')
   .option('-o, --output <output>', 'Output type (default: "json"): "json" or "yaml"', 'json')
   .option('-l, --loglevel <level>', 'Logging level (default: "error"): "error", "warn", "info", "debug"', 'error')
   .option('-v, --validate', 'Enable validation of OpenAPI spec', false)
@@ -22,7 +22,10 @@ export const fetchCommand = new Command('fetch')
 
       logger.debug('OpenAPI spec fetched successfully');
 
-      const extractedData = openapiExtractor.extract(openapiSpec, { path: options.pattern, removeDocs: true, removeExamples: true, removeExtensions: true });
+      // prefix a leading slash to the options.path if it doesn't already have one
+      options.path = options.path.startsWith('/') ? options.path : `/${options.path}`;
+
+      const extractedData = openapiExtractor.extract(openapiSpec, { path: options.path, removeDocs: true, removeExamples: true, removeExtensions: true, openai: true });
 
       logger.debug('Extracted data:', extractedData);
 
