@@ -8,7 +8,7 @@ export const stdinCommand = new Command('stdin')
   .description('Process OpenAPI spec from stdin')
   .requiredOption('-p, --path <path>', 'The Path to the desired endpoint within the OpenAPI spec (including the leading slash) for example "/auth"')
   .option('-o, --output <output>', 'Output type (default: "json"): "json" or "yaml"', 'json')
-  .option('-l, --loglevel <level>', 'Logging level (default: "info"): "error", "warn", "info", "debug"', 'info')
+  .option('-l, --loglevel <level>', 'Logging level (default: "error"): "error", "warn", "info", "debug"', 'error')
   .option('-v, --validate', 'Enable validation of OpenAPI spec', false)
   .action((options) => {
     try {
